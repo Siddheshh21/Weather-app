@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SkyWatch — A production-grade real-time weather application with live forecasts, 3D animated weather conditions, and vibrant design." />
+  <title>SkyWatch — Real-Time Weather</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet" />
+
+  <!-- AOS (Animate on Scroll) -->
+  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css" />
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body class="weather-clear" id="app-body">
+
+  <!-- ════════════════ ANIMATED BACKGROUND LAYERS ════════════════ -->
+  <div class="bg-layer" id="bg-layer" aria-hidden="true">
+    <canvas id="particle-canvas"></canvas>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+  </div>
+
+  <!-- ════════════════ MAIN WRAPPER ════════════════ -->
+  <div class="app-wrapper">
+
+    <!-- ── HEADER / SEARCH ── -->
+    <header class="app-header" id="app-header">
+      <div class="header-inner">
+        <div class="brand" id="brand-logo">
+          <div class="brand-icon">
+            <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="18" cy="18" r="8" fill="currentColor" opacity="0.9"/>
+              <path d="M18 4V8M18 28V32M4 18H8M28 18H32M7.76 7.76L10.59 10.59M25.41 25.41L28.24 28.24M28.24 7.76L25.41 10.59M10.59 25.41L7.76 28.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <span class="brand-name">SkyWatch</span>
+        </div>
+
+        <!-- Search -->
+        <div class="search-container" id="search-container">
+          <div class="search-box" id="search-box">
+            <div class="search-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </div>
+            <input
+              type="text"
+              id="search-input"
+              class="search-input"
+              placeholder="Search city or location..."
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Search city"
+              aria-autocomplete="list"
+              aria-controls="autocomplete-list"
+            />
+            <button class="search-clear" id="search-clear" aria-label="Clear search" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            <button class="search-btn" id="search-btn" aria-label="Search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Autocomplete dropdown -->
+          <ul class="autocomplete-list" id="autocomplete-list" role="listbox" aria-label="City suggestions"></ul>
+        </div>
+
+        <!-- Geo locate -->
+        <button class="geo-btn" id="geo-btn" title="Use my location" aria-label="Use my location">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+            <circle cx="12" cy="12" r="9" stroke-dasharray="2 4"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="app-main" id="app-main">
+
+      <!-- ── LOADING STATE ── -->
+      <div class="loading-screen" id="loading-screen" aria-live="polite">
+        <div class="loader-ring">
+          <svg viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" stroke-width="4" fill="none" class="loader-track"/>
+            <circle cx="40" cy="40" r="34" stroke-width="4" fill="none" class="loader-arc" stroke-dasharray="60 154"/>
+          </svg>
+        </div>
+        <p class="loader-text">Fetching weather data...</p>
+      </div>
+
+      <!-- ── ERROR STATE ── -->
+      <div class="error-toast" id="error-toast" aria-live="assertive" role="alert">
+        <div class="error-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        </div>
+        <span class="error-msg" id="error-msg">Something went wrong.</span>
+        <button class="error-close" id="error-close" aria-label="Dismiss">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- ══════════════ WEATHER CONTENT (hidden until data loads) ══════════════ -->
+      <div class="weather-content" id="weather-content" style="display:none">
+
+        <!-- ── CURRENT WEATHER HERO ── -->
+        <section class="hero-section" id="hero-section">
+          <div class="hero-left">
+            <div class="hero-location" id="hero-location">
+              <svg class="pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+              <span id="city-name">—</span>
+              <span id="country-name" class="country-badge">—</span>
+            </div>
+            <div class="hero-date-time">
+              <span id="live-time" class="live-time">—</span>
+              <span class="divider">·</span>
+              <span id="live-date" class="live-date">—</span>
+            </div>
+
+            <div class="hero-temp-row">
+              <div class="hero-temp" id="hero-temp">—<sup>°</sup></div>
+              <div class="hero-temp-range">
+                <span class="temp-high" id="temp-max">—°</span>
+                <span class="temp-low" id="temp-min">—°</span>
+              </div>
+            </div>
+
+            <div class="hero-description" id="hero-description">—</div>
+            <div class="feels-like">Feels like <span id="feels-like">—</span>°</div>
+          </div>
+
+          <div class="hero-right">
+            <div class="weather-icon-big" id="weather-icon-big" aria-hidden="true">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ── WEATHER DETAIL TILES ── -->
+        <section class="details-section" id="details-section">
+          <div class="details-grid">
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="0">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a7 7 0 0 0-7 7c0 5.333 7 13 7 13s7-7.667 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Humidity</span>
+                <span class="tile-value" id="d-humidity">—</span>
+                <span class="tile-unit">%</span>
+              </div>
+              <div class="tile-bar-wrap"><div class="tile-bar" id="humidity-bar"></div></div>
+            </div>
+
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="60">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Wind</span>
+                <span class="tile-value" id="d-wind">—</span>
+                <span class="tile-unit">km/h</span>
+              </div>
+              <div class="tile-sub" id="d-wind-dir">—</div>
+            </div>
+
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="120">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Pressure</span>
+                <span class="tile-value" id="d-pressure">—</span>
+                <span class="tile-unit">hPa</span>
+              </div>
+            </div>
+
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="180">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.64-7 10-7 10 7 10 7-3.64 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Visibility</span>
+                <span class="tile-value" id="d-visibility">—</span>
+                <span class="tile-unit">km</span>
+              </div>
+            </div>
+
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="240">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="3"/><path d="M12 8v13M8 12h8"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Sunrise</span>
+                <span class="tile-value" id="d-sunrise">—</span>
+              </div>
+            </div>
+
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="300">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="19" r="3"/><path d="M12 3v13M4.22 10.22l1.42 1.42M18.36 11.64l1.42-1.42M1 22h22M5 19H3M21 19h-2"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Sunset</span>
+                <span class="tile-value" id="d-sunset">—</span>
+              </div>
+            </div>
+
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="360">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 18h18M6 12l6-9 6 9"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Cloud Cover</span>
+                <span class="tile-value" id="d-clouds">—</span>
+                <span class="tile-unit">%</span>
+              </div>
+              <div class="tile-bar-wrap"><div class="tile-bar" id="clouds-bar"></div></div>
+            </div>
+
+            <div class="detail-tile" data-aos="fade-up" data-aos-delay="420">
+              <div class="tile-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              </div>
+              <div class="tile-info">
+                <span class="tile-label">Condition</span>
+                <span class="tile-value tile-value--sm" id="d-condition">—</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── HOURLY FORECAST ── -->
+        <section class="hourly-section" data-aos="fade-up">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Hourly Forecast
+          </h2>
+          <div class="hourly-scroll-wrapper">
+            <div class="hourly-strip" id="hourly-strip">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ── 5-DAY FORECAST ── -->
+        <section class="forecast-section" data-aos="fade-up">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            5-Day Forecast
+          </h2>
+          <div class="forecast-cards" id="forecast-cards">
+            <!-- Injected by JS -->
+          </div>
+        </section>
+
+      </div><!-- /weather-content -->
+    </main>
+
+    <!-- ── FOOTER ── -->
+    <footer class="app-footer">
+      <span>Powered by OpenWeatherMap · Built with precision</span>
+    </footer>
+
+  </div><!-- /app-wrapper -->
+
+  <!-- GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <!-- AOS -->
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+  <!-- App JS -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
