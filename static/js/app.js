@@ -493,7 +493,27 @@ class WeatherApp {
   _geoLocate() {
     if (!navigator.geolocation) {
       this._showError('Geolocation is not supported by your browser.');
-      retucoords;
+      return;
+    }
+    this.geoBtn.classList.add('loading');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.geoBtn.classList.remove('loading');
+        this.fetchWeather({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      },
+      () => {
+        this.geoBtn.classList.remove('loading');
+        this._showError('Location access denied. Please search manually.');
+      },
+      { timeout: 8000 }
+    );
+  }
+
+  /* ── Fetch Weather ───────────────────────────────────────── */
+  async fetchWeather(params) {
+    this._showLoading();
+    try {
+      let coords;
 
       // Get coordinates from city name or use provided coords
       if (params.lat != null && params.lon != null) {
