@@ -632,27 +632,7 @@ class WeatherApp {
     const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
                   "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
     const idx = Math.round(degrees / 22.5) % 16;
-    return dirs[idx]; if (params.lat != null && params.lon != null) {
-        url += `lat=${params.lat}&lon=${params.lon}`;
-      } else {
-        url += `q=${encodeURIComponent(params.q)}`;
-      }
-
-      const res  = await fetch(url);
-      const data = await res.json();
-
-      if (!res.ok) {
-        this._showError(data.error || 'Failed to fetch weather data.');
-        this._hideLoading();
-        return;
-      }
-
-      this.currentData = data;
-      this._render(data);
-    } catch (err) {
-      this._showError('Network error. Please check your connection.');
-      this._hideLoading();
-    }
+    return dirs[idx];
   }
 
   /* ── Render All ──────────────────────────────────────────── */
